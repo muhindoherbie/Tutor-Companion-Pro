@@ -1,0 +1,45 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.pub-cache/
+.pub/
+*.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Flutter local config
+lib/generated_plugin_registrant.dart
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# Node (edge functions / tooling)
+node_modules/
+dist/
+dist-electron/
+release-apk/
+release-binaries/
+android/
+
+# Secrets — never commit keys or credentials
+.env
+.env.*
+*.pem
+*.key
+secrets/
+service_account*.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log

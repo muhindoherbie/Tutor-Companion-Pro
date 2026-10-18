@@ -1,0 +1,8 @@
+{
+  "name": "Tutor Companion",
+  "description": "An offline-first academic management suite for tutors to organize classes, course units, curriculum outlines, and topics.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

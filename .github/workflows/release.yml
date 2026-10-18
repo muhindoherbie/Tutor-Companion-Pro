@@ -1,0 +1,138 @@
+name: Build & Release Desktop (.exe) and Android (.apk)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Desktop .exe
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Package Windows Executable (.exe)
+        run: |
+          npx --yes electron-builder --win --x64 -c.win.target=nsis -c.nsis.oneClick=false -c.extraMetadata.main=electron.cjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows .exe Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TutorCompanion-Windows-Setup
+          path: dist/*.exe
+
+  build-android:
+    name: Build Android .apk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies & Build Web App
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Android APK with Capacitor
+        run: |
+          npx --yes @capacitor/cli init "Tutor Companion" "com.tutorcompanion.app" --web-dir "dist"
+          npm install @capacitor/core @capacitor/android
+          npx cap add android
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cd ..
+          mkdir -p release-apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-apk/TutorCompanion-Android-v1.0.0.apk || true
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TutorCompanion-Android-APK
+          path: release-apk/*.apk
+
+  publish-github-release:
+    name: Publish Public GitHub Release
+    needs: [build-windows, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TutorCompanion-Windows-Setup
+          path: release-assets/windows
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TutorCompanion-Android-APK
+          path: release-assets/android
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.release_tag }}
+          name: Tutor Companion ${{ github.ref_name || inputs.release_tag }} (Windows .exe & Android .apk)
+          body: |
+            ## Tutor Companion Official Release
+
+            ### Downloads:
+            - 🖥️ **Windows PC**: Download `TutorCompanion-Setup.exe` (Installer for Windows 10/11)
+            - 📱 **Android**: Download `TutorCompanion-Android.apk` (Android 8.0+)
+            
+            ### Highlights in this Release:
+            - **Curriculum & Teacher's Guide Ingestion**: Automatic syllabus breakdown, courses, units, and learning objectives.
+            - **Lecture Notes Studio**: Contact hour structured notes with instant PPTX, DOCX, and PDF exports.
+            - **Exam & Assessment Engine**: Standard & substandard exams, question banks, and complete marking schemes.
+            - **Academic Gradebook**: Student biodata, continuous assessment, GPA computation, and CSV exports.
+            - **Deep Solve AI Assistant**: Dedicated tutor solver with voice, image, document, and text query support.
+            - **Offline-First Resilience**: Full offline operation with persistent storage and backup sync.
+          files: |
+            release-assets/windows/*.exe
+            release-assets/android/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
