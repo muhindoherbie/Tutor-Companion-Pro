@@ -1,9 +1,7 @@
 name: Release
 
+# Tag pushes are handled by release.yml (builds .exe/.apk); this workflow is manual-only.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
